@@ -15,7 +15,7 @@ const firebaseConfig = {
 
 // --- ¡IMPORTANTE! ---
 // Pega aquí el MISMO ID de tu carpeta 'artifacts'
-const ARTIFACTS_DOCUMENT_ID = 'WkVsarS3pp4gQzoT9ZE1'; // <--- ¡¡¡REEMPLAZA ESTO!!!
+const ARTIFACTS_DOCUMENT_ID = 'WkVsarS3pp4gQzoT9ZE1'; // <-- ¡¡¡REEMPLAZA ESTO!!!
 
 const LoadingScreen = () => (
     <div className="bg-gray-800 min-h-screen flex flex-col items-center justify-center text-white font-sans">
