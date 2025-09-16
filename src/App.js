@@ -33,9 +33,11 @@ function App() {
 
   useEffect(() => {
     try {
-      const app = initializeApp(firebaseConfig);
-      const firestoreDb = getFirestore(app);
-      setDb(firestoreDb);
+      if (firebaseConfig.apiKey !== "TU_API_KEY") {
+        const app = initializeApp(firebaseConfig);
+        const firestoreDb = getFirestore(app);
+        setDb(firestoreDb);
+      }
     } catch (e) { console.error("Error al inicializar Firebase. Revisa tu configuración.", e); }
   }, []);
 
@@ -44,8 +46,10 @@ function App() {
       const productsPath = `artifacts/${ARTIFACTS_DOCUMENT_ID}/users/ADMIN_USER_ID/products`;
       const unsubscribe = onSnapshot(collection(db, productsPath), (snapshot) => {
         setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      });
+      }, (error) => { console.error("Error al obtener productos:", error); setProducts([]); });
       return () => unsubscribe();
+    } else {
+        setProducts([]);
     }
   }, [db]);
 
@@ -56,8 +60,10 @@ function App() {
         const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         ordersData.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
         setOrders(ordersData);
-      });
+      }, (error) => { console.error("Error al obtener órdenes:", error); setOrders([]); });
       return () => unsubscribe();
+    } else {
+        setOrders([]);
     }
   }, [db]);
 
@@ -135,9 +141,9 @@ const ProductManager = ({ products, db }) => {
                         {products.map(p => (
                             <tr key={p.id} className="border-b border-gray-700 hover:bg-gray-800">
                                 <td className="p-2"><img src={p.imageUrl || 'https://placehold.co/100x100/2d3748/e2e8f0?text=S/I'} alt={p.name} className="h-12 w-12 object-cover rounded-md" /></td>
-                                <td className="p-2 font-semibold">{p.name}</td>
-                                <td className="p-2">${p.price != null ? p.price.toFixed(2) : '0.00'}</td>
-                                <td className="p-2">{p.stock}</td>
+                                <td className="p-2 font-semibold">{p.name || 'Sin Nombre'}</td>
+                                <td className="p-2">${typeof p.price === 'number' ? p.price.toFixed(2) : '0.00'}</td>
+                                <td className="p-2">{p.stock || 0}</td>
                                 <td className="p-2">
                                     <button onClick={() => handleEdit(p)} className="bg-blue-500 text-white text-sm py-1 px-2 rounded mr-2 hover:bg-blue-600">Editar</button>
                                     <button onClick={() => handleDelete(p.id)} className="bg-red-500 text-white text-sm py-1 px-2 rounded hover:bg-red-600">Eliminar</button>
@@ -198,7 +204,7 @@ const OrderManager = ({ orders, db }) => {
         if (customer?.coordinates?.lat && customer?.coordinates?.lng) {
             return `https://www.google.com/maps?q=${customer.coordinates.lat},${customer.coordinates.lng}`;
         }
-        const fullAddress = `${customer.address || ''}, ${customer.city || ''}, ${customer.zipCode || ''}`;
+        const fullAddress = `${customer?.address || ''}, ${customer?.city || ''}, ${customer?.zipCode || ''}`;
         return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
     };
 
@@ -221,7 +227,7 @@ const OrderManager = ({ orders, db }) => {
                                 <p className="text-xs text-gray-400">Fecha: {order.createdAt?.toDate().toLocaleString() || 'N/A'}</p>
                                 <a href={getMapLink(order.customer)} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:underline block mt-1">
                                     📍 Ver en Google Maps
-                                    {order.customer?.coordinates && <span className="text-green-400 font-bold ml-2">(Ubicación GPS Precisa)</span>}
+                                    {order.customer?.coordinates && <span className="text-green-400 font-bold ml-2">(GPS Preciso)</span>}
                                 </a>
                                 {order.customer?.references && (
                                     <p className="text-sm text-yellow-300 mt-2 bg-yellow-900/50 p-2 rounded-md">
@@ -230,16 +236,16 @@ const OrderManager = ({ orders, db }) => {
                                 )}
                             </div>
                             <div className="text-right flex-shrink-0 ml-4">
-                                <p className="font-bold text-xl text-amber-400">${(order.total || 0).toFixed(2)}</p>
-                                <span className={`text-sm font-semibold px-2 py-0.5 rounded-full capitalize ${order.status === 'pendiente' ? 'bg-yellow-500 text-black' : (order.status === 'enviado' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white')}`}>
-                                    {order.status}
+                                <p className="font-bold text-xl text-amber-400">${typeof order.total === 'number' ? order.total.toFixed(2) : '0.00'}</p>
+                                <span className={`text-sm font-semibold px-2 py-0.5 rounded-full capitalize ${order.status || 'desconocido'}`}>
+                                    {order.status || 'desconocido'}
                                 </span>
                             </div>
                         </div>
                         <div className="mt-2 border-t border-gray-600 pt-2">
                              <p className="font-semibold">Productos:</p>
                             <ul className="list-disc list-inside text-sm text-gray-300">
-                                {order.items?.map((item, index) => <li key={index}>{item.quantity}x {item.name}</li>)}
+                                {Array.isArray(order.items) && order.items.map((item, index) => <li key={index}>{(item.quantity || 1)}x {item.name || 'Producto desconocido'}</li>)}
                             </ul>
                         </div>
                         <div className="mt-3 flex space-x-2">
