@@ -17,18 +17,26 @@ const firebaseConfig = {
 // Pega aquí el MISMO ID de tu carpeta 'artifacts'
 const ARTIFACTS_DOCUMENT_ID = 'WkVsarS3pp4gQzoT9ZE1'; // <--- ¡¡¡REEMPLAZA ESTO!!!
 
+const LoadingScreen = () => (
+    <div className="bg-gray-800 min-h-screen flex flex-col items-center justify-center text-white font-sans">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-amber-400 mb-4"></div>
+        <h1 className="text-2xl font-bold text-amber-400">Cargando Panel de Administrador</h1>
+        <p className="text-slate-400">Conectando con la base de datos...</p>
+    </div>
+);
+
 function App() {
-  const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState(null);
+  const [orders, setOrders] = useState(null);
   const [view, setView] = useState('orders');
   const [db, setDb] = useState(null);
 
-    useEffect(() => {
+  useEffect(() => {
     try {
       const app = initializeApp(firebaseConfig);
       const firestoreDb = getFirestore(app);
       setDb(firestoreDb);
-    } catch (e) { console.error("Error al inicializar Firebase.", e); }
+    } catch (e) { console.error("Error al inicializar Firebase. Revisa tu configuración.", e); }
   }, []);
 
   useEffect(() => {
@@ -53,7 +61,11 @@ function App() {
     }
   }, [db]);
 
-  const pendingOrdersCount = orders.filter(o => o.status === 'pendiente').length;
+  const pendingOrdersCount = orders ? orders.filter(o => o.status === 'pendiente').length : 0;
+
+  if (products === null || orders === null) {
+      return <LoadingScreen />;
+  }
 
   return (
     <div className="bg-gray-800 min-h-screen font-sans text-white">
@@ -88,27 +100,18 @@ const Nav = ({ setView, activeView, productCount, orderCount }) => (
         </button>
     </nav>
 );
+
 const ProductManager = ({ products, db }) => {
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
-
-    const handleEdit = (product) => {
-        setEditingProduct(product);
-        setShowModal(true);
-    };
-
-    const handleAdd = () => {
-        setEditingProduct(null);
-        setShowModal(true);
-    };
-
+    const handleEdit = (product) => { setEditingProduct(product); setShowModal(true); };
+    const handleAdd = () => { setEditingProduct(null); setShowModal(true); };
     const handleDelete = async (productId) => {
-        if (window.confirm("¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.")) {
+        if (window.confirm("¿Seguro que quieres eliminar este producto?")) {
             const productPath = `artifacts/${ARTIFACTS_DOCUMENT_ID}/users/ADMIN_USER_ID/products/${productId}`;
             await deleteDoc(doc(db, productPath));
         }
     };
-
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
@@ -117,10 +120,11 @@ const ProductManager = ({ products, db }) => {
                     + Agregar Producto
                 </button>
             </div>
-             <div className="overflow-x-auto">
+            <div className="overflow-x-auto">
                 <table className="w-full text-left">
                     <thead>
                         <tr className="border-b border-gray-700">
+                            <th className="p-2 w-16">Imagen</th>
                             <th className="p-2">Nombre</th>
                             <th className="p-2">Precio</th>
                             <th className="p-2">Stock</th>
@@ -130,6 +134,7 @@ const ProductManager = ({ products, db }) => {
                     <tbody>
                         {products.map(p => (
                             <tr key={p.id} className="border-b border-gray-700 hover:bg-gray-800">
+                                <td className="p-2"><img src={p.imageUrl || 'https://placehold.co/100x100/2d3748/e2e8f0?text=S/I'} alt={p.name} className="h-12 w-12 object-cover rounded-md" /></td>
                                 <td className="p-2 font-semibold">{p.name}</td>
                                 <td className="p-2">${p.price}</td>
                                 <td className="p-2">{p.stock}</td>
@@ -146,26 +151,14 @@ const ProductManager = ({ products, db }) => {
         </div>
     );
 };
+
 const ProductModal = ({ product, setShowModal, db }) => {
-    const [formData, setFormData] = useState({
-        name: product?.name || '',
-        price: product?.price || '',
-        stock: product?.stock || '',
-        category: product?.category || '',
-    });
-
+    const [formData, setFormData] = useState({ name: product?.name || '', price: product?.price || '', stock: product?.stock || '', category: product?.category || '', imageUrl: product?.imageUrl || '' });
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         const collectionPath = `artifacts/${ARTIFACTS_DOCUMENT_ID}/users/ADMIN_USER_ID/products`;
-        const data = {
-            name: formData.name,
-            price: Number(formData.price),
-            stock: Number(formData.stock),
-            category: formData.category,
-        };
-
+        const data = { name: formData.name, price: Number(formData.price), stock: Number(formData.stock), category: formData.category, imageUrl: formData.imageUrl };
         if (product) {
             await updateDoc(doc(db, collectionPath, product.id), data);
         } else {
@@ -173,7 +166,6 @@ const ProductModal = ({ product, setShowModal, db }) => {
         }
         setShowModal(false);
     };
-
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
             <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
@@ -181,6 +173,7 @@ const ProductModal = ({ product, setShowModal, db }) => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Nombre del Producto" className="w-full p-2 bg-gray-700 rounded" required />
                     <input type="text" name="category" value={formData.category} onChange={handleChange} placeholder="Categoría" className="w-full p-2 bg-gray-700 rounded" required />
+                    <input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="URL de la Imagen del Producto" className="w-full p-2 bg-gray-700 rounded" />
                     <div className="flex space-x-4">
                         <input type="number" name="price" value={formData.price} onChange={handleChange} placeholder="Precio" className="w-1/2 p-2 bg-gray-700 rounded" required />
                         <input type="number" name="stock" value={formData.stock} onChange={handleChange} placeholder="Stock" className="w-1/2 p-2 bg-gray-700 rounded" required />
@@ -226,12 +219,10 @@ const OrderManager = ({ orders, db }) => {
                                 <p className="font-bold text-lg">{order.customer?.name || 'Cliente anónimo'}</p>
                                 <p className="text-sm text-gray-300">📞 {order.customer?.phone || 'N/A'}</p>
                                 <p className="text-xs text-gray-400">Fecha: {order.createdAt?.toDate().toLocaleString() || 'N/A'}</p>
-                                
                                 <a href={getMapLink(order.customer)} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:underline block mt-1">
                                     📍 Ver en Google Maps
                                     {order.customer?.coordinates && <span className="text-green-400 font-bold ml-2">(Ubicación GPS Precisa)</span>}
                                 </a>
-
                                 {order.customer?.references && (
                                     <p className="text-sm text-yellow-300 mt-2 bg-yellow-900/50 p-2 rounded-md">
                                         <strong>Referencias:</strong> {order.customer.references}
