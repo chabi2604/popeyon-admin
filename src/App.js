@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 // --- ¡IMPORTANTE! ---
-// Pega aquí la MISMA configuración de Firebase que usaste para tu tienda.
+// Pega aquí la MISMA configuración de Firebase
 const firebaseConfig = {
     apiKey: "TU_API_KEY",
     authDomain: "popeyon-tienda.firebaseapp.com",
@@ -14,21 +14,21 @@ const firebaseConfig = {
 };
 
 // --- ¡IMPORTANTE! ---
-// Pega aquí el MISMO ID raro de la carpeta 'artifacts' de tu tienda.
+// Pega aquí el MISMO ID de tu carpeta 'artifacts'
 const ARTIFACTS_DOCUMENT_ID = 'WkVsarS3pp4gQzoT9ZE1'; // <--- ¡¡¡REEMPLAZA ESTO!!!
 
 function App() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [view, setView] = useState('orders'); // Empezar en la vista de pedidos
+  const [view, setView] = useState('orders');
   const [db, setDb] = useState(null);
 
-  useEffect(() => {
+    useEffect(() => {
     try {
       const app = initializeApp(firebaseConfig);
       const firestoreDb = getFirestore(app);
       setDb(firestoreDb);
-    } catch (e) { console.error("Error al inicializar Firebase. Revisa tu configuración.", e); }
+    } catch (e) { console.error("Error al inicializar Firebase.", e); }
   }, []);
 
   useEffect(() => {
@@ -88,7 +88,6 @@ const Nav = ({ setView, activeView, productCount, orderCount }) => (
         </button>
     </nav>
 );
-
 const ProductManager = ({ products, db }) => {
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
@@ -202,6 +201,17 @@ const OrderManager = ({ orders, db }) => {
         await updateDoc(doc(db, orderPath), { status: newStatus });
     };
 
+    // --- ¡LÓGICA MEJORADA PARA EL LINK DE MAPS! ---
+    const getMapLink = (customer) => {
+        if (customer?.coordinates?.lat && customer?.coordinates?.lng) {
+            // Si tenemos coordenadas, el link es súper preciso
+            return `https://www.google.com/maps?q=${customer.coordinates.lat},${customer.coordinates.lng}`;
+        }
+        // Si no, usamos la dirección como antes
+        const fullAddress = `${customer.address || ''}, ${customer.city || ''}, ${customer.zipCode || ''}`;
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
+    };
+
     const getFullAddress = (customer) => {
         if (!customer) return 'Dirección no proporcionada';
         return `${customer.address || ''}, ${customer.city || ''}, ${customer.zipCode || ''}`;
@@ -215,13 +225,20 @@ const OrderManager = ({ orders, db }) => {
                 {orders.map(order => (
                     <div key={order.id} className={`p-4 rounded-lg ${order.status === 'pendiente' ? 'bg-gray-700' : (order.status === 'enviado' ? 'bg-blue-900/50' : 'bg-green-900/50')}`}>
                         <div className="flex justify-between items-start">
-                            <div>
+                           <div>
                                 <p className="font-bold text-lg">{order.customer?.name || 'Cliente anónimo'}</p>
                                 <p className="text-sm text-gray-300">📞 {order.customer?.phone || 'N/A'}</p>
                                 <p className="text-xs text-gray-400">Fecha: {order.createdAt?.toDate().toLocaleString() || 'N/A'}</p>
-                                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getFullAddress(order.customer))}`} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:underline block mt-1">
+                                <a href={getMapLink(order.customer)} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:underline block mt-1">
                                     📍 {getFullAddress(order.customer)}
+                                    {order.customer?.coordinates && <span className="text-green-400 font-bold ml-2">(GPS Preciso)</span>}
                                 </a>
+                                {/* --- ¡NUEVO CAMPO DE REFERENCIAS! --- */}
+                                {order.customer?.references && (
+                                    <p className="text-sm text-yellow-300 mt-2 bg-yellow-900/50 p-2 rounded-md">
+                                        <strong>Referencias:</strong> {order.customer.references}
+                                    </p>
+                                )}
                             </div>
                             <div className="text-right flex-shrink-0 ml-4">
                                 <p className="font-bold text-xl text-amber-400">${order.total.toFixed(2)}</p>
@@ -231,7 +248,7 @@ const OrderManager = ({ orders, db }) => {
                             </div>
                         </div>
                         <div className="mt-2 border-t border-gray-600 pt-2">
-                            <p className="font-semibold">Productos:</p>
+                             <p className="font-semibold">Productos:</p>
                             <ul className="list-disc list-inside text-sm text-gray-300">
                                 {order.items.map((item, index) => <li key={index}>{item.quantity}x {item.name}</li>)}
                             </ul>
@@ -256,3 +273,4 @@ const OrderManager = ({ orders, db }) => {
 };
 
 export default App;
+
