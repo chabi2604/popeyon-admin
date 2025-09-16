@@ -136,7 +136,7 @@ const ProductManager = ({ products, db }) => {
                             <tr key={p.id} className="border-b border-gray-700 hover:bg-gray-800">
                                 <td className="p-2"><img src={p.imageUrl || 'https://placehold.co/100x100/2d3748/e2e8f0?text=S/I'} alt={p.name} className="h-12 w-12 object-cover rounded-md" /></td>
                                 <td className="p-2 font-semibold">{p.name}</td>
-                                <td className="p-2">${p.price}</td>
+                                <td className="p-2">${p.price != null ? p.price.toFixed(2) : '0.00'}</td>
                                 <td className="p-2">{p.stock}</td>
                                 <td className="p-2">
                                     <button onClick={() => handleEdit(p)} className="bg-blue-500 text-white text-sm py-1 px-2 rounded mr-2 hover:bg-blue-600">Editar</button>
@@ -230,7 +230,7 @@ const OrderManager = ({ orders, db }) => {
                                 )}
                             </div>
                             <div className="text-right flex-shrink-0 ml-4">
-                                <p className="font-bold text-xl text-amber-400">${order.total.toFixed(2)}</p>
+                                <p className="font-bold text-xl text-amber-400">${(order.total || 0).toFixed(2)}</p>
                                 <span className={`text-sm font-semibold px-2 py-0.5 rounded-full capitalize ${order.status === 'pendiente' ? 'bg-yellow-500 text-black' : (order.status === 'enviado' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white')}`}>
                                     {order.status}
                                 </span>
@@ -239,7 +239,7 @@ const OrderManager = ({ orders, db }) => {
                         <div className="mt-2 border-t border-gray-600 pt-2">
                              <p className="font-semibold">Productos:</p>
                             <ul className="list-disc list-inside text-sm text-gray-300">
-                                {order.items.map((item, index) => <li key={index}>{item.quantity}x {item.name}</li>)}
+                                {order.items?.map((item, index) => <li key={index}>{item.quantity}x {item.name}</li>)}
                             </ul>
                         </div>
                         <div className="mt-3 flex space-x-2">
