@@ -89,8 +89,112 @@ const Nav = ({ setView, activeView, productCount, orderCount }) => (
     </nav>
 );
 
-const ProductManager = ({ products, db }) => { /* ... (código sin cambios) ... */ };
-const ProductModal = ({ product, setShowModal, db }) => { /* ... (código sin cambios) ... */ };
+const ProductManager = ({ products, db }) => {
+    const [showModal, setShowModal] = useState(false);
+    const [editingProduct, setEditingProduct] = useState(null);
+
+    const handleEdit = (product) => {
+        setEditingProduct(product);
+        setShowModal(true);
+    };
+
+    const handleAdd = () => {
+        setEditingProduct(null);
+        setShowModal(true);
+    };
+
+    const handleDelete = async (productId) => {
+        if (window.confirm("¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.")) {
+            const productPath = `artifacts/${ARTIFACTS_DOCUMENT_ID}/users/ADMIN_USER_ID/products/${productId}`;
+            await deleteDoc(doc(db, productPath));
+        }
+    };
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Inventario de Productos</h2>
+                <button onClick={handleAdd} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                    + Agregar Producto
+                </button>
+            </div>
+             <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="border-b border-gray-700">
+                            <th className="p-2">Nombre</th>
+                            <th className="p-2">Precio</th>
+                            <th className="p-2">Stock</th>
+                            <th className="p-2">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {products.map(p => (
+                            <tr key={p.id} className="border-b border-gray-700 hover:bg-gray-800">
+                                <td className="p-2 font-semibold">{p.name}</td>
+                                <td className="p-2">${p.price}</td>
+                                <td className="p-2">{p.stock}</td>
+                                <td className="p-2">
+                                    <button onClick={() => handleEdit(p)} className="bg-blue-500 text-white text-sm py-1 px-2 rounded mr-2 hover:bg-blue-600">Editar</button>
+                                    <button onClick={() => handleDelete(p.id)} className="bg-red-500 text-white text-sm py-1 px-2 rounded hover:bg-red-600">Eliminar</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            {showModal && <ProductModal product={editingProduct} setShowModal={setShowModal} db={db} />}
+        </div>
+    );
+};
+const ProductModal = ({ product, setShowModal, db }) => {
+    const [formData, setFormData] = useState({
+        name: product?.name || '',
+        price: product?.price || '',
+        stock: product?.stock || '',
+        category: product?.category || '',
+    });
+
+    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const collectionPath = `artifacts/${ARTIFACTS_DOCUMENT_ID}/users/ADMIN_USER_ID/products`;
+        const data = {
+            name: formData.name,
+            price: Number(formData.price),
+            stock: Number(formData.stock),
+            category: formData.category,
+        };
+
+        if (product) {
+            await updateDoc(doc(db, collectionPath, product.id), data);
+        } else {
+            await addDoc(collection(db, collectionPath), data);
+        }
+        setShowModal(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">{product ? 'Editar Producto' : 'Agregar Nuevo Producto'}</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Nombre del Producto" className="w-full p-2 bg-gray-700 rounded" required />
+                    <input type="text" name="category" value={formData.category} onChange={handleChange} placeholder="Categoría" className="w-full p-2 bg-gray-700 rounded" required />
+                    <div className="flex space-x-4">
+                        <input type="number" name="price" value={formData.price} onChange={handleChange} placeholder="Precio" className="w-1/2 p-2 bg-gray-700 rounded" required />
+                        <input type="number" name="stock" value={formData.stock} onChange={handleChange} placeholder="Stock" className="w-1/2 p-2 bg-gray-700 rounded" required />
+                    </div>
+                    <div className="flex justify-end space-x-4">
+                        <button type="button" onClick={() => setShowModal(false)} className="bg-gray-600 hover:bg-gray-500 py-2 px-4 rounded">Cancelar</button>
+                        <button type="submit" className="bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-2 px-4 rounded">{product ? 'Guardar Cambios' : 'Agregar'}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 const OrderManager = ({ orders, db }) => {
     const updateOrderStatus = async (orderId, newStatus) => {
@@ -152,4 +256,3 @@ const OrderManager = ({ orders, db }) => {
 };
 
 export default App;
-
